@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react"
 import { Navigate, Route, Routes, useNavigate } from "react-router"
-import { Alert, Button, TextField } from "@mui/material"
 import { api, setToken, type SessionUser } from "../shared/src/api"
 import { useI18n } from "../shared/src/i18n"
 import { Resource, type Field } from "../shared/src/resource"
 import { LoginCard, Shell, type NavItem } from "../shared/src/shell"
-import { Mast, MetricBand } from "../shared/src/ui"
+import { Area, Callout, CountBars, Field as TextInput, Mast, MetricBand, Welcome } from "../shared/src/ui"
 
 const nav: (NavItem & { permission?: string })[] = [
   { to: "/", ar: "نظرة عامة", en: "Overview", group: "" },
@@ -64,7 +63,14 @@ function Frame() {
     <Shell title={lang === "ar" ? "الإدارة" : "Admin"} items={items}>
       <Routes>
         <Route path="/" element={<Overview />} />
-        <Route path="/teachers" element={<Resource path="/api/admin/teachers" title={lang === "ar" ? "المعلمون" : "Teachers"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "subscriptionEndsAt", label: lang === "ar" ? "نهاية الاشتراك" : "Subscription end" }, { key: "teacherApproved", label: lang === "ar" ? "معتمد" : "Approved" }]} fields={teacherFields(lang)} />} />
+        <Route path="/teachers" element={<Resource path="/api/admin/teachers" title={lang === "ar" ? "المعلمون" : "Teachers"} columns={[
+          { key: "name", label: lang === "ar" ? "الاسم" : "Name", value: (row) => [row.firstName, row.lastName].filter(Boolean).join(" ") },
+          { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" },
+          { key: "status", label: lang === "ar" ? "الحالة" : "Status" },
+          { key: "teacherApproved", label: lang === "ar" ? "الموافقة" : "Approval" },
+          { key: "trialEndsAt", label: lang === "ar" ? "نهاية التجربة" : "Trial end" },
+          { key: "subscriptionEndsAt", label: lang === "ar" ? "نهاية الاشتراك" : "Subscription end" },
+        ]} fields={teacherFields(lang)} />} />
         <Route path="/institutes" element={<Institutes />} />
         <Route path="/students" element={<Resource path="/api/admin/students" title={lang === "ar" ? "الطلاب" : "Students"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "status", label: lang === "ar" ? "الحالة" : "Status" }]} />} />
         <Route path="/employees" element={<Resource path="/api/admin/employees" title={lang === "ar" ? "الموظفون" : "Employees"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "employeeStyle", label: lang === "ar" ? "النوع" : "Style" }]} fields={[{ name: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { name: "lastName", label: lang === "ar" ? "اللقب" : "Last" }, { name: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { name: "password", label: lang === "ar" ? "كلمة المرور" : "Password", type: "password" }, { name: "style", label: "style", type: "select", options: ["Assistant", "Staff"] }]} />} />
@@ -115,10 +121,12 @@ function Overview() {
       .catch(() => setTeachers([]))
   }, [lang])
   return (
-    <div className="stack">
-      <Mast kicker={lang === "ar" ? "إدارة الأكاديمية" : "Academy administration"} title={lang === "ar" ? "صورة اليوم من السجلات الحية" : "Today, from the live records"} lede={lang === "ar" ? "الأرقام تُحسب من الواجهة البرمجية. لا توجد مخططات تقديرية." : "These figures are counted by the API. There are no estimated charts."} />
-      {error ? <p className="callout">{error}</p> : null}
+    <div className="board">
+      <Welcome title={lang === "ar" ? "أهلاً بعودتك" : "Welcome back"} lede={lang === "ar" ? "الأعداد من الواجهة البرمجية، بلا تقدير." : "Counts come from the API."} />
+      {error ? <Callout tone="bad">{error}</Callout> : null}
       <MetricBand items={items.map((item, index) => ({ ...item, lead: index === 0 }))} />
+      <div className="board-split">
+      <CountBars title={lang === "ar" ? "الأعداد المسجّلة" : "Recorded counts"} items={items} />
       <section className="panel">
         <div className="toolbar"><h2>{lang === "ar" ? "أحدث المعلمين" : "Latest teachers"}</h2></div>
         <table className="data">
@@ -130,6 +138,7 @@ function Overview() {
           </tbody>
         </table>
       </section>
+      </div>
     </div>
   )
 }
@@ -179,21 +188,21 @@ function Institutes() {
   return (
     <div className="space-y-4">
       <Resource path="/api/admin/institutes" title={lang === "ar" ? "المعاهد" : "Institutes"} columns={[{ key: "instituteName", label: lang === "ar" ? "المعهد" : "Institute" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "logoFileId", label: lang === "ar" ? "الشعار" : "Logo" }]} />
-      <form className="grid gap-3 panel p-4 md:grid-cols-2" onSubmit={async (event) => {
+      <form className="sheet form-grid" onSubmit={async (event) => {
         event.preventDefault()
         const form = new FormData(event.currentTarget)
         await api("/api/admin/institutes", { method: "POST", body: form })
         setMessage(lang === "ar" ? "تم حفظ المعهد مع الشعار" : "Institute and logo saved")
       }}>
-        <TextField name="instituteName" label={lang === "ar" ? "اسم المعهد" : "Institute"} required />
-        <TextField name="firstName" label={lang === "ar" ? "الاسم" : "First name"} required />
-        <TextField name="phone" label={lang === "ar" ? "الهاتف" : "Phone"} required />
-        <TextField name="phone2" label={lang === "ar" ? "هاتف ثان" : "Second phone"} required />
-        <TextField name="address" label={lang === "ar" ? "العنوان" : "Address"} />
-        <TextField name="password" type="password" label={lang === "ar" ? "كلمة المرور" : "Password"} required />
-        <label className="text-sm">{lang === "ar" ? "الشعار" : "Logo"}<input className="mt-1 block" name="logo" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
-        <Button type="submit" variant="contained">{lang === "ar" ? "إنشاء مع الشعار" : "Create with logo"}</Button>
-        {message ? <Alert severity="success">{message}</Alert> : null}
+        <TextInput name="instituteName" label={lang === "ar" ? "اسم المعهد" : "Institute"} required />
+        <TextInput name="firstName" label={lang === "ar" ? "الاسم" : "First name"} required />
+        <TextInput name="phone" label={lang === "ar" ? "الهاتف" : "Phone"} required />
+        <TextInput name="phone2" label={lang === "ar" ? "هاتف ثان" : "Second phone"} required />
+        <TextInput name="address" label={lang === "ar" ? "العنوان" : "Address"} />
+        <TextInput name="password" type="password" label={lang === "ar" ? "كلمة المرور" : "Password"} required autoComplete="new-password" />
+        <label className="field">{lang === "ar" ? "الشعار" : "Logo"}<input name="logo" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
+        <button className="btn" type="submit">{lang === "ar" ? "إنشاء مع الشعار" : "Create with logo"}</button>
+        {message ? <Callout tone="ok">{message}</Callout> : null}
       </form>
     </div>
   )
@@ -207,15 +216,15 @@ function Subscriptions() {
   return (
     <div className="space-y-4">
       <Resource path="/api/admin/subscriptions" title={lang === "ar" ? "الاشتراكات" : "Subscriptions"} columns={[{ key: "status", label: lang === "ar" ? "الحالة" : "Status" }, { key: "planCodesCount", label: lang === "ar" ? "الأكواد" : "Codes" }, { key: "codesIssued", label: lang === "ar" ? "المصدر" : "Issued" }, { key: "endsAt", label: lang === "ar" ? "النهاية" : "Ends" }]} />
-      <form className="flex flex-wrap gap-2 panel p-4" onSubmit={async (event) => {
+      <form className="sheet form-grid" onSubmit={async (event) => {
         event.preventDefault()
         await api("/api/admin/subscriptions", { method: "POST", body: JSON.stringify({ userId, planId }) })
         setMessage(lang === "ar" ? "تم تسجيل دفعة نقدية بالدينار بدون عمولة" : "Cash payment recorded in IQD with no commission")
       }}>
-        <TextField label={lang === "ar" ? "معرف المستخدم" : "User id"} value={userId} onChange={(e) => setUserId(e.target.value)} />
-        <TextField label={lang === "ar" ? "معرف الباقة" : "Plan id"} value={planId} onChange={(e) => setPlanId(e.target.value)} />
-        <Button type="submit" variant="contained">{lang === "ar" ? "تعيين نقدي" : "Assign cash"}</Button>
-        {message ? <Alert severity="success">{message}</Alert> : null}
+        <TextInput label={lang === "ar" ? "معرف المستخدم" : "User id"} value={userId} onChange={(e) => setUserId(e.target.value)} />
+        <TextInput label={lang === "ar" ? "معرف الباقة" : "Plan id"} value={planId} onChange={(e) => setPlanId(e.target.value)} />
+        <button className="btn" type="submit">{lang === "ar" ? "تعيين نقدي" : "Assign cash"}</button>
+        {message ? <Callout tone="ok">{message}</Callout> : null}
       </form>
     </div>
   )
@@ -228,13 +237,13 @@ function Faq() {
   const [answer, setAnswer] = useState("")
   useEffect(() => { api<typeof rows>("/api/admin/faq").then(setRows).catch(() => setRows([])) }, [])
   return (
-    <section className="panel p-4">
-      <h2 className="display" style={{ fontSize: 28 }}>{lang === "ar" ? "الأسئلة الشائعة" : "FAQ"}</h2>
-      {rows.map((row) => <article key={row.id} className="border-t py-3"><h2 className="font-bold">{row.question}</h2><p>{row.answer}</p></article>)}
-      <form className="mt-4 grid gap-2" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/faq", { method: "POST", body: JSON.stringify({ question, answer, sortOrder: rows.length }) }); setRows(await api("/api/admin/faq")) }}>
-        <TextField label={lang === "ar" ? "السؤال" : "Question"} value={question} onChange={(e) => setQuestion(e.target.value)} />
-        <TextField label={lang === "ar" ? "الجواب" : "Answer"} value={answer} onChange={(e) => setAnswer(e.target.value)} />
-        <Button type="submit" variant="contained">{lang === "ar" ? "نشر" : "Publish"}</Button>
+    <section className="sheet stack">
+      <h2 className="display">{lang === "ar" ? "الأسئلة الشائعة" : "FAQ"}</h2>
+      {rows.map((row) => <article key={row.id} className="record"><div><h3>{row.question}</h3><p className="lede">{row.answer}</p></div></article>)}
+      <form className="stack" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/faq", { method: "POST", body: JSON.stringify({ question, answer, sortOrder: rows.length }) }); setRows(await api("/api/admin/faq")) }}>
+        <TextInput label={lang === "ar" ? "السؤال" : "Question"} value={question} onChange={(e) => setQuestion(e.target.value)} />
+        <Area label={lang === "ar" ? "الجواب" : "Answer"} value={answer} onChange={(e) => setAnswer(e.target.value)} />
+        <button className="btn" type="submit">{lang === "ar" ? "نشر" : "Publish"}</button>
       </form>
     </section>
   )
@@ -246,16 +255,16 @@ function Notify() {
   const [body, setBody] = useState("")
   const [message, setMessage] = useState("")
   return (
-    <form className="grid max-w-xl gap-3 panel p-4" onSubmit={async (event) => {
+    <form className="sheet stack" style={{ maxWidth: 640 }} onSubmit={async (event) => {
       event.preventDefault()
       await api("/api/admin/notifications", { method: "POST", body: JSON.stringify({ title, body, type: "Info", audience: "All" }) })
       setMessage(lang === "ar" ? "أُرسل الإشعار إلى الرموز المخزّنة فقط" : "Sent only to stored device tokens")
     }}>
-      <h2 className="display" style={{ fontSize: 28 }}>{lang === "ar" ? "إشعار فوري" : "Instant notification"}</h2>
-      <TextField label={lang === "ar" ? "العنوان" : "Title"} value={title} onChange={(e) => setTitle(e.target.value)} />
-      <TextField label={lang === "ar" ? "النص" : "Body"} value={body} onChange={(e) => setBody(e.target.value)} />
-      <Button type="submit" variant="contained">{lang === "ar" ? "إرسال" : "Send"}</Button>
-      {message ? <Alert severity="info">{message}</Alert> : null}
+      <h2 className="display">{lang === "ar" ? "إشعار فوري" : "Instant notification"}</h2>
+      <TextInput label={lang === "ar" ? "العنوان" : "Title"} value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Area label={lang === "ar" ? "النص" : "Body"} value={body} onChange={(e) => setBody(e.target.value)} />
+      <button className="btn" type="submit">{lang === "ar" ? "إرسال" : "Send"}</button>
+      {message ? <Callout>{message}</Callout> : null}
     </form>
   )
 }
@@ -267,19 +276,19 @@ function Parameters() {
   return (
     <div className="space-y-4">
       <Resource path="/api/admin/parameters" title={lang === "ar" ? "إعدادات النظام" : "Parameters"} columns={[{ key: "key", label: lang === "ar" ? "المفتاح" : "Key" }, { key: "value", label: lang === "ar" ? "القيمة" : "Value" }]} />
-      <form className="grid gap-2 panel p-4" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/parameters", { method: "PUT", body: JSON.stringify({ key, value }) }) }}>
-        <TextField label={lang === "ar" ? "المفتاح" : "Key"} value={key} onChange={(e) => setKey(e.target.value)} />
-        <TextField label={lang === "ar" ? "القيمة" : "Value"} value={value} onChange={(e) => setValue(e.target.value)} />
-        <Button type="submit" variant="contained">{lang === "ar" ? "حفظ" : "Save"}</Button>
+      <form className="sheet stack" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/parameters", { method: "PUT", body: JSON.stringify({ key, value }) }) }}>
+        <TextInput label={lang === "ar" ? "المفتاح" : "Key"} value={key} onChange={(e) => setKey(e.target.value)} />
+        <TextInput label={lang === "ar" ? "القيمة" : "Value"} value={value} onChange={(e) => setValue(e.target.value)} />
+        <button className="btn" type="submit">{lang === "ar" ? "حفظ" : "Save"}</button>
       </form>
-      <form className="panel p-4" onSubmit={async (event) => {
+      <form className="sheet stack" onSubmit={async (event) => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
         await api("/api/admin/privacy", { method: "POST", body: data })
       }}>
-        <p className="mb-2 font-bold">{lang === "ar" ? "ملف الخصوصية" : "Privacy PDF"}</p>
-        <input name="file" type="file" accept="application/pdf" required />
-        <Button type="submit" variant="contained" className="ms-2">{lang === "ar" ? "رفع" : "Upload"}</Button>
+        <h2>{lang === "ar" ? "ملف الخصوصية" : "Privacy PDF"}</h2>
+        <label className="field">{lang === "ar" ? "الملف" : "File"}<input name="file" type="file" accept="application/pdf" required /></label>
+        <button className="btn" type="submit">{lang === "ar" ? "رفع" : "Upload"}</button>
       </form>
     </div>
   )
