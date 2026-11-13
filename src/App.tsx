@@ -4,6 +4,7 @@ import { api, setToken, type SessionUser } from "../shared/src/api"
 import { useI18n } from "../shared/src/i18n"
 import { Resource, type Field } from "../shared/src/resource"
 import { LoginCard, Shell, type NavItem } from "../shared/src/shell"
+import { StatGrid } from "../shared/src/stats"
 import { Area, Callout, CountBars, Field as TextInput, Mast, MetricBand, Welcome } from "../shared/src/ui"
 
 const nav: (NavItem & { permission?: string })[] = [
@@ -124,7 +125,7 @@ function Overview() {
     <div className="board">
       <Welcome title={lang === "ar" ? "أهلاً بعودتك" : "Welcome back"} lede={lang === "ar" ? "الأعداد من الواجهة البرمجية، بلا تقدير." : "Counts come from the API."} />
       {error ? <Callout tone="bad">{error}</Callout> : null}
-      <MetricBand items={items.map((item, index) => ({ ...item, lead: index === 0 }))} />
+      <StatGrid items={items.map((item, index) => ({ ...item, icon: (["people", "student", "building", "ticket"] as const)[index] ?? "book", tone: (["violet", "sun", "mint", "coral"] as const)[index] ?? "sky" }))} />
       <div className="board-split">
       <CountBars title={lang === "ar" ? "الأعداد المسجّلة" : "Recorded counts"} items={items} />
       <section className="panel">

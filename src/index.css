@@ -10,6 +10,7 @@
 @import "../shared/src/tovi.css";
 @import "../shared/src/tokens.css";
 @import "../shared/src/vivid.css";
+@import "../shared/src/stats.css";
 
 /* Admin layout used a framed purple shell; Planet uses the same flat light shell as the other dashboards. */
 .tovi-app { padding: 0; }
