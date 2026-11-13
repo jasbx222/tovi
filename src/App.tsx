@@ -5,7 +5,9 @@ import { useI18n } from "../shared/src/i18n"
 import { Resource, type Field } from "../shared/src/resource"
 import { LoginCard, Shell, type NavItem } from "../shared/src/shell"
 import { StatGrid } from "../shared/src/stats"
-import { Area, Callout, CountBars, Field as TextInput, Mast, MetricBand, Welcome } from "../shared/src/ui"
+import { Area, Callout, CountBars, Field as TextInput, Welcome } from "../shared/src/ui"
+import { CountChart } from "../shared/src/charts"
+import { FormModal, useToast } from "../shared/src/crud"
 
 const nav: (NavItem & { permission?: string })[] = [
   { to: "/", ar: "نظرة عامة", en: "Overview", group: "" },
@@ -61,10 +63,10 @@ function Frame() {
   if (!me) return null
   const items = nav.filter((item) => !item.permission || me.permissions.includes(item.permission))
   return (
-    <Shell title={lang === "ar" ? "الإدارة" : "Admin"} items={items}>
+    <Shell title={lang === "ar" ? "الإدارة" : "Admin"} items={items} user={{ name: me.name, phone: me.phone, instituteName: me.instituteName }} notifyTo="/notifications">
       <Routes>
         <Route path="/" element={<Overview />} />
-        <Route path="/teachers" element={<Resource path="/api/admin/teachers" title={lang === "ar" ? "المعلمون" : "Teachers"} columns={[
+        <Route path="/teachers" element={<Resource path="/api/admin/teachers" title={lang === "ar" ? "المعلمون" : "Teachers"} update image="photoFileId" columns={[
           { key: "name", label: lang === "ar" ? "الاسم" : "Name", value: (row) => [row.firstName, row.lastName].filter(Boolean).join(" ") },
           { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" },
           { key: "status", label: lang === "ar" ? "الحالة" : "Status" },
@@ -73,8 +75,8 @@ function Frame() {
           { key: "subscriptionEndsAt", label: lang === "ar" ? "نهاية الاشتراك" : "Subscription end" },
         ]} fields={teacherFields(lang)} />} />
         <Route path="/institutes" element={<Institutes />} />
-        <Route path="/students" element={<Resource path="/api/admin/students" title={lang === "ar" ? "الطلاب" : "Students"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "status", label: lang === "ar" ? "الحالة" : "Status" }, { key: "xp", label: lang === "ar" ? "النقاط" : "XP" }, { key: "streak", label: lang === "ar" ? "السلسلة (يوم)" : "Streak (days)" }]} />} />
-        <Route path="/employees" element={<Resource path="/api/admin/employees" title={lang === "ar" ? "الموظفون" : "Employees"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "employeeStyle", label: lang === "ar" ? "النوع" : "Style" }]} fields={[{ name: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { name: "lastName", label: lang === "ar" ? "اللقب" : "Last" }, { name: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { name: "password", label: lang === "ar" ? "كلمة المرور" : "Password", type: "password" }, { name: "style", label: "style", type: "select", options: ["Assistant", "Staff"] }]} />} />
+        <Route path="/students" element={<Resource path="/api/admin/students" title={lang === "ar" ? "الطلاب" : "Students"} image="photoFileId" columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name", value: (row) => [row.firstName, row.lastName].filter(Boolean).join(" ") }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "status", label: lang === "ar" ? "الحالة" : "Status" }, { key: "xp", label: lang === "ar" ? "النقاط" : "XP" }, { key: "streak", label: lang === "ar" ? "السلسلة (يوم)" : "Streak (days)" }]} />} />
+        <Route path="/employees" element={<Resource path="/api/admin/employees" title={lang === "ar" ? "الموظفون" : "Employees"} columns={[{ key: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "employeeStyle", label: lang === "ar" ? "النوع" : "Style" }]} fields={[{ name: "firstName", label: lang === "ar" ? "الاسم" : "Name" }, { name: "lastName", label: lang === "ar" ? "اللقب" : "Last" }, { name: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { name: "password", label: lang === "ar" ? "كلمة المرور" : "Password", type: "password", optionalOnEdit: true }, { name: "style", label: "style", type: "select", options: ["Assistant", "Staff"] }]} />} />
         <Route path="/sections" element={<Named path="/api/admin/sections" title={lang === "ar" ? "الأقسام" : "Sections"} />} />
         <Route path="/grades" element={<Named path="/api/admin/grades" title={lang === "ar" ? "المراحل" : "Grades"} />} />
         <Route path="/subjects" element={<Named path="/api/admin/subjects" title={lang === "ar" ? "المواد" : "Subjects"} />} />
@@ -127,7 +129,7 @@ function Overview() {
       {error ? <Callout tone="bad">{error}</Callout> : null}
       <StatGrid items={items.map((item, index) => ({ ...item, icon: (["people", "student", "building", "ticket"] as const)[index] ?? "book", tone: (["violet", "sun", "mint", "coral"] as const)[index] ?? "sky" }))} />
       <div className="board-split">
-      <CountBars title={lang === "ar" ? "الأعداد المسجّلة" : "Recorded counts"} items={items} />
+      <CountChart title={lang === "ar" ? "الأعداد المسجّلة" : "Recorded counts"} items={items} />
       <section className="panel">
         <div className="toolbar"><h2>{lang === "ar" ? "أحدث المعلمين" : "Latest teachers"}</h2></div>
         <table className="data">
@@ -146,7 +148,7 @@ function Overview() {
 
 function Named({ path, title }: { path: string; title: string }) {
   const { lang } = useI18n()
-  return <Resource path={path} title={title} columns={[{ key: "name", label: lang === "ar" ? "الاسم" : "Name" }]} fields={[{ name: "name", label: lang === "ar" ? "الاسم" : "Name" }]} />
+  return <Resource path={path} title={title} update remove columns={[{ key: "name", label: lang === "ar" ? "الاسم" : "Name" }]} fields={[{ name: "name", label: lang === "ar" ? "الاسم" : "Name", required: true }]} />
 }
 
 function teacherFields(lang: string): Field[] {
@@ -185,68 +187,68 @@ function hourFields(lang: string): Field[] {
 
 function Institutes() {
   const { lang } = useI18n()
-  const [message, setMessage] = useState("")
   return (
-    <div className="space-y-4">
-      <Resource path="/api/admin/institutes" title={lang === "ar" ? "المعاهد" : "Institutes"} columns={[{ key: "instituteName", label: lang === "ar" ? "المعهد" : "Institute" }, { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" }, { key: "logoFileId", label: lang === "ar" ? "الشعار" : "Logo" }]} />
-      <form className="sheet form-grid" onSubmit={async (event) => {
-        event.preventDefault()
-        const form = new FormData(event.currentTarget)
-        await api("/api/admin/institutes", { method: "POST", body: form })
-        setMessage(lang === "ar" ? "تم حفظ المعهد مع الشعار" : "Institute and logo saved")
-      }}>
-        <TextInput name="instituteName" label={lang === "ar" ? "اسم المعهد" : "Institute"} required />
-        <TextInput name="firstName" label={lang === "ar" ? "الاسم" : "First name"} required />
-        <TextInput name="phone" label={lang === "ar" ? "الهاتف" : "Phone"} required />
-        <TextInput name="phone2" label={lang === "ar" ? "هاتف ثان" : "Second phone"} required />
-        <TextInput name="address" label={lang === "ar" ? "العنوان" : "Address"} />
-        <TextInput name="password" type="password" label={lang === "ar" ? "كلمة المرور" : "Password"} required autoComplete="new-password" />
-        <label className="field">{lang === "ar" ? "الشعار" : "Logo"}<input name="logo" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
-        <button className="btn" type="submit">{lang === "ar" ? "إنشاء مع الشعار" : "Create with logo"}</button>
-        {message ? <Callout tone="ok">{message}</Callout> : null}
-      </form>
-    </div>
+    <Resource
+      path="/api/admin/institutes"
+      title={lang === "ar" ? "المعاهد" : "Institutes"}
+      image="logoFileId"
+      update
+      multipart
+      columns={[
+        { key: "instituteName", label: lang === "ar" ? "المعهد" : "Institute" },
+        { key: "firstName", label: lang === "ar" ? "المسؤول" : "Manager" },
+        { key: "phone", label: lang === "ar" ? "الهاتف" : "Phone" },
+        { key: "status", label: lang === "ar" ? "الحالة" : "Status" },
+      ]}
+      fields={[
+        { name: "instituteName", label: lang === "ar" ? "اسم المعهد" : "Institute", required: true },
+        { name: "firstName", label: lang === "ar" ? "الاسم" : "First name", required: true },
+        { name: "phone", label: lang === "ar" ? "الهاتف" : "Phone", type: "tel", required: true, optionalOnEdit: true, hint: lang === "ar" ? "مثال: 07xxxxxxxx" : "Example: 07xxxxxxxx" },
+        { name: "phone2", label: lang === "ar" ? "هاتف ثان" : "Second phone", type: "tel", required: true, optionalOnEdit: true },
+        { name: "address", label: lang === "ar" ? "العنوان" : "Address" },
+        { name: "password", label: lang === "ar" ? "كلمة المرور" : "Password", type: "password", required: true, optionalOnEdit: true },
+        { name: "logo", label: lang === "ar" ? "الشعار" : "Logo", type: "file", required: true, optionalOnEdit: true },
+      ]}
+    />
   )
 }
 
 function Subscriptions() {
   const { lang } = useI18n()
-  const [userId, setUserId] = useState("")
-  const [planId, setPlanId] = useState("")
-  const [message, setMessage] = useState("")
   return (
-    <div className="space-y-4">
-      <Resource path="/api/admin/subscriptions" title={lang === "ar" ? "الاشتراكات" : "Subscriptions"} columns={[{ key: "status", label: lang === "ar" ? "الحالة" : "Status" }, { key: "planCodesCount", label: lang === "ar" ? "الأكواد" : "Codes" }, { key: "codesIssued", label: lang === "ar" ? "المصدر" : "Issued" }, { key: "endsAt", label: lang === "ar" ? "النهاية" : "Ends" }]} />
-      <form className="sheet form-grid" onSubmit={async (event) => {
-        event.preventDefault()
-        await api("/api/admin/subscriptions", { method: "POST", body: JSON.stringify({ userId, planId }) })
-        setMessage(lang === "ar" ? "تم تسجيل دفعة نقدية بالدينار بدون عمولة" : "Cash payment recorded in IQD with no commission")
-      }}>
-        <TextInput label={lang === "ar" ? "معرف المستخدم" : "User id"} value={userId} onChange={(e) => setUserId(e.target.value)} />
-        <TextInput label={lang === "ar" ? "معرف الباقة" : "Plan id"} value={planId} onChange={(e) => setPlanId(e.target.value)} />
-        <button className="btn" type="submit">{lang === "ar" ? "تعيين نقدي" : "Assign cash"}</button>
-        {message ? <Callout tone="ok">{message}</Callout> : null}
-      </form>
-    </div>
+    <Resource
+      path="/api/admin/subscriptions"
+      title={lang === "ar" ? "الاشتراكات" : "Subscriptions"}
+      columns={[
+        { key: "status", label: lang === "ar" ? "الحالة" : "Status" },
+        { key: "planCodesCount", label: lang === "ar" ? "الأكواد" : "Codes" },
+        { key: "codesIssued", label: lang === "ar" ? "المصدر" : "Issued" },
+        { key: "endsAt", label: lang === "ar" ? "النهاية" : "Ends" },
+      ]}
+      fields={[
+        { name: "userId", label: lang === "ar" ? "معرف المستخدم" : "User id", required: true },
+        { name: "planId", label: lang === "ar" ? "معرف الباقة" : "Plan id", required: true },
+      ]}
+    />
   )
 }
 
 function Faq() {
   const { lang } = useI18n()
-  const [rows, setRows] = useState<{ id: string; question: string; answer: string }[]>([])
-  const [question, setQuestion] = useState("")
-  const [answer, setAnswer] = useState("")
-  useEffect(() => { api<typeof rows>("/api/admin/faq").then(setRows).catch(() => setRows([])) }, [])
   return (
-    <section className="sheet stack">
-      <h2 className="display">{lang === "ar" ? "الأسئلة الشائعة" : "FAQ"}</h2>
-      {rows.map((row) => <article key={row.id} className="record"><div><h3>{row.question}</h3><p className="lede">{row.answer}</p></div></article>)}
-      <form className="stack" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/faq", { method: "POST", body: JSON.stringify({ question, answer, sortOrder: rows.length }) }); setRows(await api("/api/admin/faq")) }}>
-        <TextInput label={lang === "ar" ? "السؤال" : "Question"} value={question} onChange={(e) => setQuestion(e.target.value)} />
-        <Area label={lang === "ar" ? "الجواب" : "Answer"} value={answer} onChange={(e) => setAnswer(e.target.value)} />
-        <button className="btn" type="submit">{lang === "ar" ? "نشر" : "Publish"}</button>
-      </form>
-    </section>
+    <Resource
+      path="/api/admin/faq"
+      title={lang === "ar" ? "الأسئلة الشائعة" : "FAQ"}
+      columns={[
+        { key: "question", label: lang === "ar" ? "السؤال" : "Question" },
+        { key: "answer", label: lang === "ar" ? "الجواب" : "Answer" },
+      ]}
+      fields={[
+        { name: "question", label: lang === "ar" ? "السؤال" : "Question", required: true },
+        { name: "answer", label: lang === "ar" ? "الجواب" : "Answer", type: "textarea", required: true },
+        { name: "sortOrder", label: lang === "ar" ? "الترتيب" : "Order", type: "number", value: "0" },
+      ]}
+    />
   )
 }
 
@@ -272,25 +274,43 @@ function Notify() {
 
 function Parameters() {
   const { lang } = useI18n()
-  const [key, setKey] = useState("privacy_url")
-  const [value, setValue] = useState("")
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [file, setFile] = useState<File | null>(null)
   return (
-    <div className="space-y-4">
-      <Resource path="/api/admin/parameters" title={lang === "ar" ? "إعدادات النظام" : "Parameters"} columns={[{ key: "key", label: lang === "ar" ? "المفتاح" : "Key" }, { key: "value", label: lang === "ar" ? "القيمة" : "Value" }]} />
-      <form className="sheet stack" onSubmit={async (event) => { event.preventDefault(); await api("/api/admin/parameters", { method: "PUT", body: JSON.stringify({ key, value }) }) }}>
-        <TextInput label={lang === "ar" ? "المفتاح" : "Key"} value={key} onChange={(e) => setKey(e.target.value)} />
-        <TextInput label={lang === "ar" ? "القيمة" : "Value"} value={value} onChange={(e) => setValue(e.target.value)} />
-        <button className="btn" type="submit">{lang === "ar" ? "حفظ" : "Save"}</button>
-      </form>
-      <form className="sheet stack" onSubmit={async (event) => {
-        event.preventDefault()
-        const data = new FormData(event.currentTarget)
-        await api("/api/admin/privacy", { method: "POST", body: data })
+    <div className="stack">
+      <Resource
+        path="/api/admin/parameters"
+        title={lang === "ar" ? "إعدادات النظام" : "Parameters"}
+        columns={[{ key: "key", label: lang === "ar" ? "المفتاح" : "Key" }, { key: "value", label: lang === "ar" ? "القيمة" : "Value" }]}
+        fields={[{ name: "key", label: lang === "ar" ? "المفتاح" : "Key", required: true }, { name: "value", label: lang === "ar" ? "القيمة" : "Value", required: true }]}
+        submit={async ({ payload }) => { await api("/api/admin/parameters", { method: "PUT", body: payload instanceof FormData ? payload : JSON.stringify(payload) }) }}
+      />
+      <div className="crud-head">
+        <div><h2>{lang === "ar" ? "ملف الخصوصية" : "Privacy PDF"}</h2></div>
+        <button className="btn" type="button" onClick={() => { setError(""); setOpen(true) }}>{lang === "ar" ? "رفع ملف" : "Upload file"}</button>
+      </div>
+      <FormModal open={open} title={lang === "ar" ? "رفع ملف الخصوصية" : "Upload privacy PDF"} onClose={() => setOpen(false)} busy={busy} error={error} submitLabel={lang === "ar" ? "رفع" : "Upload"} onSubmit={async () => {
+        if (!file) { setError(lang === "ar" ? "اختر ملفاً" : "Choose a file"); return }
+        setBusy(true)
+        try {
+          const data = new FormData()
+          data.append("file", file)
+          await api("/api/admin/privacy", { method: "POST", body: data })
+          setOpen(false)
+          toast.push(lang === "ar" ? "تم رفع الملف" : "File uploaded")
+        } catch (reason) {
+          setError(reason instanceof Error ? reason.message : "")
+        } finally { setBusy(false) }
       }}>
-        <h2>{lang === "ar" ? "ملف الخصوصية" : "Privacy PDF"}</h2>
-        <label className="field">{lang === "ar" ? "الملف" : "File"}<input name="file" type="file" accept="application/pdf" required /></label>
-        <button className="btn" type="submit">{lang === "ar" ? "رفع" : "Upload"}</button>
-      </form>
+        <label className="dropzone">
+          <span className="dropzone-label">{lang === "ar" ? "ملف PDF" : "PDF file"}</span>
+          <input className="sr-only" type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          <span className="dropzone-box"><i className="dropzone-plus" /><span><strong>{file ? file.name : (lang === "ar" ? "اضغط لاختيار الملف" : "Click to choose a file")}</strong></span></span>
+        </label>
+      </FormModal>
     </div>
   )
 }
