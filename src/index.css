@@ -9,14 +9,12 @@
 @import "@fontsource/alexandria/700.css";
 @import "../shared/src/tovi.css";
 @import "../shared/src/tokens.css";
+@import "../shared/src/vivid.css";
 
 /* Admin layout used a framed purple shell; Planet uses the same flat light shell as the other dashboards. */
-body, .tovi-app { background: var(--tv-page, #F6F5FB); }
 .tovi-app { padding: 0; }
-.tovi-side { top: 0; height: 100vh; background: #fff; color: var(--ink); border-radius: 0; box-shadow: 0 0 0 1px rgba(23, 20, 43, 0.04); }
+.tovi-side { top: 0; height: 100vh; color: var(--ink); border-radius: 0; }
 .tovi-side .brand, .tovi-side .brand span { color: var(--ink); }
 .tovi-side .side-thumb { background: rgba(106, 76, 255, 0.35); }
-.welcome { background: #6A4CFF; }
-.ledger-side li, .ledger-main, .directory-card, .course-card { border: 0; box-shadow: 0 1px 2px rgba(23, 20, 43, 0.04), 0 8px 24px rgba(23, 20, 43, 0.06); }
-.bar-fill { background: #6A4CFF; }
+.ledger-side li, .ledger-main, .directory-card, .course-card { border: 0; }
 .ledger-main strong, .ledger-main span, .ledger-main small { color: #fff; }
