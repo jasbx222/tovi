@@ -8,6 +8,7 @@ import { StatGrid } from "../shared/src/stats"
 import { Area, Callout, CountBars, Field as TextInput, Welcome } from "../shared/src/ui"
 import { CountChart } from "../shared/src/charts"
 import { FormModal, useToast } from "../shared/src/crud"
+import { useLookupLabels, personLookup, type LookupConfig } from "../shared/src/lookup"
 
 const nav: (NavItem & { permission?: string })[] = [
   { to: "/", ar: "نظرة عامة", en: "Overview", group: "" },
@@ -213,21 +214,46 @@ function Institutes() {
   )
 }
 
+function personName(row: Record<string, unknown>) {
+  return [row.firstName, row.lastName, row.instituteName].filter(Boolean).join(" ").trim() || String(row.phone ?? "")
+}
+
 function Subscriptions() {
   const { lang } = useI18n()
+  const ar = lang === "ar"
+  const teacherOf = useLookupLabels("/api/admin/teachers", personName)
+  const instituteOf = useLookupLabels("/api/admin/institutes", (row) => String(row.instituteName || personName(row)))
+  const planOf = useLookupLabels("/api/admin/plans", (row) => String(row.title ?? ""))
+  const planLookup: LookupConfig = {
+    path: "/api/admin/plans",
+    queryParam: false,
+    filter: (row) => String(row.audience) === "ForTeacher",
+    labelOf: (row) => String(row.title ?? ""),
+    hintOf: (row) => {
+      const price = row.priceYearly == null ? "" : `${Number(row.priceYearly).toLocaleString(ar ? "ar-IQ" : "en-GB")} IQD`
+      const codes = row.codesCount == null ? "" : (ar ? `${row.codesCount} أكواد · سنة` : `${row.codesCount} codes · 1 year`)
+      return [price, codes].filter(Boolean).join(" · ")
+    },
+    placeholder: ar ? "اختر الباقة" : "Choose a plan",
+    searchHint: ar ? "ابحث عن الباقة" : "Search plans",
+    pageSize: 100,
+  }
   return (
     <Resource
       path="/api/admin/subscriptions"
-      title={lang === "ar" ? "الاشتراكات" : "Subscriptions"}
+      title={ar ? "الاشتراكات" : "Subscriptions"}
+      formTitle={(mode) => mode === "edit" ? (ar ? "تعديل اشتراك" : "Edit subscription") : (ar ? "إضافة اشتراك" : "Add subscription")}
       columns={[
-        { key: "status", label: lang === "ar" ? "الحالة" : "Status" },
-        { key: "planCodesCount", label: lang === "ar" ? "الأكواد" : "Codes" },
-        { key: "codesIssued", label: lang === "ar" ? "المصدر" : "Issued" },
-        { key: "endsAt", label: lang === "ar" ? "النهاية" : "Ends" },
+        { key: "userId", label: ar ? "المعلم" : "Teacher", value: (row) => { const name = teacherOf(row.userId); return name === "—" ? instituteOf(row.userId) : name } },
+        { key: "planId", label: ar ? "الباقة" : "Plan", value: (row) => planOf(row.planId) },
+        { key: "status", label: ar ? "الحالة" : "Status" },
+        { key: "planCodesCount", label: ar ? "الأكواد" : "Codes" },
+        { key: "codesIssued", label: ar ? "المصدر" : "Issued" },
+        { key: "endsAt", label: ar ? "النهاية" : "Ends" },
       ]}
       fields={[
-        { name: "userId", label: lang === "ar" ? "معرف المستخدم" : "User id", required: true },
-        { name: "planId", label: lang === "ar" ? "معرف الباقة" : "Plan id", required: true },
+        { name: "userId", label: ar ? "المعلم" : "Teacher", type: "lookup", required: true, lookup: personLookup("/api/admin/teachers", lang, { ar: "المعلم", en: "teacher" }) },
+        { name: "planId", label: ar ? "الباقة" : "Plan", type: "lookup", required: true, lookup: planLookup },
       ]}
     />
   )
