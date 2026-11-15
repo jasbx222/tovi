@@ -1,83 +1,27 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { NavLink, useLocation, useNavigate } from "react-router"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { setToken } from "./api"
+import { IconChevronLeft, IconChevronRight, IconCommand, IconDotsCircleHorizontal, IconLanguage, IconLogout, IconMenu2, IconPhone, IconSearch, IconX } from "@tabler/icons-react"
+import { setToken, type SessionUser } from "./api"
+import { AuthScene, Mark, Sprout } from "./art"
+import { appConfig } from "./config"
 import { useI18n } from "./i18n"
+import { routeVisual } from "./icons"
+import { Avatar, Button, IconButton, PageCtx } from "./ui"
+import { TextField } from "./form"
 
 export type NavItem = { to: string; ar: string; en: string; group?: string }
 
-const glyphs: Record<string, string> = {
-  home: "M4.5 11.2 12 4.5l7.5 6.7V20a1 1 0 0 1-1 1h-4.2v-5.2h-4.6V21H5.5a1 1 0 0 1-1-1z",
-  person: "M12 12.2a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2ZM5.8 19.4c.55-2.7 2.9-4.1 6.2-4.1s5.65 1.4 6.2 4.1",
-  people: "M9 11.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2ZM4.2 18.6c.4-2.2 2.1-3.4 4.8-3.4s4.4 1.2 4.8 3.4M16.2 11.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4M14.2 18.6c.3-1.6 1.5-2.6 3.2-2.6 1.4 0 2.4.7 2.8 2",
-  building: "M4.5 20.2V7.2L12 3.8l7.5 3.4v13H4.5zM9 20.2v-3.2h2.4V20M12.8 20.2v-3.2H15V20M9 12.2h2.2M12.8 12.2H15M9 9h2.2M12.8 9H15",
-  grid: "M4.5 4.5h6.2v6.2H4.5zM13.3 4.5h6.2v6.2h-6.2zM4.5 13.3h6.2v6.2H4.5zM13.3 13.3h6.2v6.2h-6.2z",
-  layers: "M12 3.8 4 8.2 12 12.6l8-4.4L12 3.8zM6.2 12.4 12 15.6l5.8-3.2M6.2 16 12 19.2l5.8-3.2",
-  book: "M5 6.2A1.8 1.8 0 0 1 6.8 4.4H11v15.2H6.8A1.8 1.8 0 0 0 5 21.4V6.2zM13 4.4h4.2A1.8 1.8 0 0 1 19 6.2v15.2a1.8 1.8 0 0 0-1.8-1.8H13V4.4z",
-  pin: "M12 21s6-5.1 6-9.3A6 6 0 0 0 6 11.7C6 15.9 12 21 12 21zM12 13.2a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z",
-  calendar: "M5 6.2h14v13.2H5zM5 10.2h14M8.2 4.2v3.2M15.8 4.2v3.2",
-  card: "M4.2 7.2h15.6v9.6H4.2zM4.2 10.6h15.6",
-  receipt: "M6.2 3.6h11.6v16.6l-1.9-1.1-1.9 1.1-2 1.1-2-1.1-1.9-1.1-1.9 1.1V3.6zM8.6 8.2h6.8M8.6 11.6h6.8",
-  ticket: "M4.2 8h15.6v2.2a1.7 1.7 0 0 0 0 3.2V16H4.2v-2.6a1.7 1.7 0 0 0 0-3.2V8z",
-  clock: "M12 20.4a8.4 8.4 0 1 0 0-16.8 8.4 8.4 0 0 0 0 16.8zM12 8.2V12l2.6 1.7",
-  video: "M4.2 7.6h9.2v8.8H4.2zM13.4 10.4 19.4 7.8v8.4l-6-2.6z",
-  megaphone: "M4.2 10.2v3.6h2.4l5.8 3V7.2l-5.8 3H4.2zM15.6 9.2a3.4 3.4 0 0 1 0 5.6",
-  help: "M12 20.4a8.4 8.4 0 1 0 0-16.8 8.4 8.4 0 0 0 0 16.8zM9.5 9.5a2.5 2.5 0 1 1 3.3 2.4c-.7.3-1.3.9-1.3 1.8M12 16.8h.01",
-  bell: "M6.4 16.4h11.2l-1.2-1.5V11a4.4 4.4 0 0 0-8.8 0v3.9l-1.2 1.5zM10 18.2a2 2 0 0 0 4 0",
-  chart: "M4.5 19.2h15M7.2 16.4V12M12 16.4V7.8M16.8 16.4V10",
-  gear: "M12 15.3a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6zM12 3.6v2.2M12 18.2v2.2M5.1 6.6l1.6 1.3M17.3 16.1l1.6 1.3M5.1 17.4l1.6-1.3M17.3 7.9l1.6-1.3M3.6 12h2.2M18.2 12h2.2",
-  note: "M7 3.6h7.2L19 8.4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.6a1 1 0 0 1 1-1zM14.2 3.8V8.6H19M9 12.2h6M9 15.4h4.2",
-  cap: "M3.4 10.4 12 6.4l8.6 4L12 14.4 3.4 10.4zM7.2 12.2v3.1c0 .3 2.1 2.1 4.8 2.1s4.8-1.8 4.8-2.1v-3.1",
+function groupLabel(group: string | undefined, lang: string) {
+  if (!group) return ""
+  return group.includes("|") ? (lang === "ar" ? group.split("|")[0] : group.split("|")[1]) : group
 }
 
-function iconFor(to: string) {
-  if (to === "/" || to.endsWith("home")) return "home"
-  if (/governorate/.test(to)) return "pin"
-  if (/notif/.test(to)) return "bell"
-  if (/setting|parameter|profile/.test(to)) return "gear"
-  if (/hour|pool/.test(to)) return "clock"
-  if (/session|classroom|meeting|chat/.test(to)) return "video"
-  if (/report/.test(to)) return "chart"
-  if (/invoice/.test(to)) return "receipt"
-  if (/code/.test(to)) return "ticket"
-  if (/subscription/.test(to)) return "card"
-  if (/plan/.test(to)) return "calendar"
-  if (/faq/.test(to)) return "help"
-  if (/ad/.test(to)) return "megaphone"
-  if (/grade/.test(to)) return "layers"
-  if (/section/.test(to)) return "grid"
-  if (/domain/.test(to)) return "pin"
-  if (/institute/.test(to)) return "building"
-  if (/employee/.test(to)) return "person"
-  if (/student/.test(to)) return "cap"
-  if (/teacher|assistant|group/.test(to)) return "people"
-  if (/course|summar|exam|subject|guide/.test(to)) return "book"
-  return "note"
-}
-
-function Glyph({ name }: { name: string }) {
-  return (
-    <span className="nav-ico">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d={glyphs[name] ?? glyphs.note} />
-      </svg>
-    </span>
-  )
-}
-
-export function Mark() {
-  return (
-    <svg className="mark-svg" viewBox="0 0 36 36" aria-hidden="true">
-      <rect width="36" height="36" rx="11" fill="#3d45c6" />
-      <path d="M10 12h16M18 12v14" stroke="#f5f7fb" strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="26" cy="26" r="2.4" fill="#e7b089" />
-    </svg>
-  )
-}
-
-export function Shell({ title, items, children }: { title: string; items: NavItem[]; children: React.ReactNode }) {
-  const { t, lang, toggle } = useI18n()
+export function Shell({ title, items, user, children }: { title: string; items: NavItem[]; user?: SessionUser | null; children: ReactNode }) {
+  const { t, lang, toggle, dir } = useI18n()
   const [open, setOpen] = useState(false)
+  const [palette, setPalette] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const reduce = useReducedMotion()
@@ -86,135 +30,272 @@ export function Shell({ title, items, children }: { title: string; items: NavIte
   const nested = items.filter((item) => item.to !== "/" && location.pathname.startsWith(item.to)).sort((a, b) => b.to.length - a.to.length)[0]
   const current = exact ?? nested
   const pageLabel = current ? (lang === "ar" ? current.ar : current.en) : title
-  const sideRef = useRef<HTMLDivElement>(null)
-  const [thumb, setThumb] = useState({ top: 0, height: 0 })
+  const Sep = dir === "rtl" ? IconChevronLeft : IconChevronRight
+
   useEffect(() => {
-    const el = sideRef.current
-    if (!el) return
-    const sync = () => {
-      const { scrollTop, scrollHeight, clientHeight } = el
-      if (scrollHeight <= clientHeight + 1) {
-        setThumb({ top: 0, height: 0 })
-        return
-      }
-      const height = Math.max(36, (clientHeight / scrollHeight) * clientHeight)
-      const top = (scrollTop / (scrollHeight - clientHeight)) * (clientHeight - height)
-      setThumb({ top, height })
+    const onScroll = () => setScrolled(window.scrollY > 4)
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPalette(true) }
     }
-    sync()
-    el.addEventListener("scroll", sync, { passive: true })
-    const observer = new ResizeObserver(sync)
-    observer.observe(el)
-    return () => {
-      el.removeEventListener("scroll", sync)
-      observer.disconnect()
-    }
-  }, [items.length, open])
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("keydown", onKey)
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("keydown", onKey) }
+  }, [])
+  useEffect(() => { setOpen(false); window.scrollTo({ top: 0 }) }, [location.pathname])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false) }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [open])
+
   let lastGroup = ""
+  const tabItems = items.slice(0, 4)
+  const signOut = () => { setToken(""); navigate("/login") }
+
   return (
-    <div className="tovi-app">
-      {open ? <button className="scrim" aria-label={t.close} onClick={() => setOpen(false)} /> : null}
-      <aside className={open ? "tovi-side open" : "tovi-side"}>
-        <div className="brand">
-          <Mark />
-          <div><strong>{t.brand}</strong><span>{title}</span></div>
+    <div className="app" data-app={appConfig.kind}>
+      <a href="#main" className="sr-only">{pageLabel}</a>
+      {open ? <motion.button className="scrim" aria-label={t.close} onClick={() => setOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} /> : null}
+      <aside className={open ? "side open" : "side"} aria-label={t.menu}>
+        <div className="side-brand">
+          <Mark size={42} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>{t.brand}</strong>
+            <small>{title}</small>
+          </div>
+          <span className="menu-btn"><IconButton icon={IconX} label={t.close} onClick={() => setOpen(false)} /></span>
         </div>
-        <div className="side-scroll-wrap">
-        <div className="side-scroll" ref={sideRef}>
+        <button type="button" className="side-jump" onClick={() => setPalette(true)}>
+          <IconSearch size={17} aria-hidden="true" />
+          {t.menuSearch}
+          <kbd><IconCommand size={11} style={{ display: "inline", verticalAlign: "-1px" }} />K</kbd>
+        </button>
+        <nav className="side-nav">
           {items.map((item) => {
-            const groupLabel = item.group?.includes("|") ? (lang === "ar" ? item.group.split("|")[0] : item.group.split("|")[1]) : item.group
-            const group = groupLabel && item.group !== lastGroup ? groupLabel : ""
+            const label = groupLabel(item.group, lang)
+            const header = label && item.group !== lastGroup ? label : ""
             if (item.group) lastGroup = item.group
-            const label = lang === "ar" ? item.ar : item.en
+            const { Icon: Glyph, tone } = routeVisual(item.to)
             return (
               <div key={item.to}>
-                {group ? <div className="nav-group">{group}</div> : null}
-                <NavLink className={({ isActive }) => isActive ? "nav-link active" : "nav-link"} to={item.to} end={item.to === "/"} onClick={() => setOpen(false)}>
-                  <Glyph name={iconFor(item.to)} />
-                  {label}
+                {header ? <div className="nav-group">{header}</div> : null}
+                <NavLink className={({ isActive }) => `nav-link tone-${tone}${isActive ? " active" : ""}`} to={item.to} end={item.to === "/"}>
+                  <span className="nav-ico" aria-hidden="true"><Glyph size={19} stroke={1.9} /></span>
+                  {lang === "ar" ? item.ar : item.en}
                 </NavLink>
               </div>
             )
           })}
-        </div>
-        {thumb.height > 0 ? <span className="side-thumb" style={{ height: thumb.height, transform: `translateY(${thumb.top}px)` }} /> : null}
-        </div>
-        <div className="side-foot">
-          <button className="lang" type="button" onClick={toggle}>{t.language}</button>
-          <button className="ghost" type="button" onClick={() => { setToken(""); navigate("/login") }}>{t.logout}</button>
-        </div>
-      </aside>
-      <div className="tovi-main">
-        <header className="tovi-top">
-          <button className="menu-btn ghost" type="button" onClick={() => setOpen(true)}>{t.menu}</button>
-          <div className="top-title">
-            <span className="top-kicker">{title}</span>
-            {room ? null : <h1>{pageLabel}</h1>}
+        </nav>
+        {appConfig.kind === "teacher" ? (
+          <div className="side-foot" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Sprout className="side-sprout" mood="wave" />
+            <small style={{ color: "var(--text-3)", fontSize: 12, lineHeight: 1.4 }}>{lang === "ar" ? "استوديو المحتوى" : "Content studio"}</small>
           </div>
-          <div className="who-chip">
-            <span className="who-copy"><strong>{title}</strong><small>{t.brand}</small></span>
-            <span className="who" aria-hidden="true">{title.slice(0, 1)}</span>
+        ) : null}
+      </aside>
+
+      <div className="main">
+        <header className={scrolled ? "top scrolled" : "top"}>
+          <span className="menu-btn"><IconButton icon={IconMenu2} label={t.menu} onClick={() => setOpen(true)} outlined /></span>
+          <nav className="crumbs" aria-label="breadcrumb">
+            <span className="crumb-root">{title}</span>
+            <Sep size={14} className="crumb-sep" aria-hidden="true" />
+            <strong aria-current="page">{pageLabel}</strong>
+          </nav>
+          <div className="top-actions">
+            <IconButton icon={IconSearch} label={t.menuSearch} onClick={() => setPalette(true)} />
+            <IconButton icon={IconLanguage} label={t.language} onClick={toggle} />
+            <ProfileMenu user={user} title={title} onSignOut={signOut} />
           </div>
         </header>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            className={room ? "tovi-content room" : "tovi-content"}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? undefined : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <PageCtx.Provider value={current ? { to: current.to, label: pageLabel } : { to: location.pathname, label: pageLabel }}>
+          <AnimatePresence mode="wait">
+            <motion.main
+              id="main"
+              key={location.pathname}
+              className={room ? "content room" : "content"}
+              initial={reduce ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </motion.main>
+          </AnimatePresence>
+        </PageCtx.Provider>
       </div>
+
+      <nav className="tabbar" aria-label={t.menu}>
+        {tabItems.map((item) => {
+          const { Icon: Glyph } = routeVisual(item.to)
+          return (
+            <NavLink key={item.to} to={item.to} end={item.to === "/"} aria-label={lang === "ar" ? item.ar : item.en} className={({ isActive }) => (isActive ? "active" : "")}>
+              <Glyph size={22} stroke={1.9} aria-hidden="true" />
+              <span>{lang === "ar" ? item.ar : item.en}</span>
+            </NavLink>
+          )
+        })}
+        {items.length > 4 ? (
+          <button type="button" aria-label={t.more} onClick={() => setOpen(true)}>
+            <IconDotsCircleHorizontal size={22} stroke={1.9} aria-hidden="true" />
+            <span>{t.more}</span>
+          </button>
+        ) : null}
+      </nav>
+
+      <Palette open={palette} onClose={() => setPalette(false)} items={items} />
     </div>
   )
 }
 
-export function AuthLayout({ title, children }: { title: string; children: React.ReactNode }) {
+function ProfileMenu({ user, title, onSignOut }: { user?: SessionUser | null; title: string; onSignOut: () => void }) {
   const { t, toggle } = useI18n()
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (event: MouseEvent) => { if (!wrap.current?.contains(event.target as Node)) setOpen(false) }
+    const key = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false) }
+    document.addEventListener("mousedown", close)
+    document.addEventListener("keydown", key)
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", key) }
+  }, [open])
+  const name = user?.name || user?.instituteName || title
   return (
-    <div className="auth">
-      <div className="auth-stage">
-        <main className="auth-card">
-          <div className="auth-head">
-            <Mark />
-            <button className="lang" type="button" onClick={toggle}>{t.language}</button>
-          </div>
-          <p className="auth-brand">{t.brand}</p>
-          <h1>{title}</h1>
-          <p className="lede">{t.tagline}</p>
-          {children}
-        </main>
-      </div>
+    <div className="menu-wrap" ref={wrap}>
+      <button type="button" className="profile-btn" aria-label={`${name} · ${t.account}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Avatar name={name} />
+        <span className="who"><strong>{name}</strong><small>{title}</small></span>
+      </button>
+      <AnimatePresence>
+        {open ? (
+          <motion.div className="pop down end menu-pop" role="menu" initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>
+            <div className="menu-head">
+              <strong>{name}</strong>
+              {user?.phone ? <small style={{ display: "flex", gap: 4, alignItems: "center" }}><IconPhone size={13} aria-hidden="true" /><span dir="ltr">{user.phone}</span></small> : <small>{title}</small>}
+            </div>
+            <button type="button" role="menuitem" className="opt" onClick={() => { toggle(); setOpen(false) }}><IconLanguage size={18} aria-hidden="true" />{t.language}</button>
+            <button type="button" role="menuitem" className="opt danger" onClick={onSignOut}><IconLogout size={18} aria-hidden="true" className="flip-rtl" />{t.logout}</button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }
 
-export function LoginCard({ title, onSubmit, extra }: { title: string; onSubmit: (phone: string, password: string) => Promise<void>; extra?: React.ReactNode }) {
-  const { t } = useI18n()
+/** Keyboard page switcher. It only navigates between pages this person can already see. */
+function Palette({ open, onClose, items }: { open: boolean; onClose: () => void; items: NavItem[] }) {
+  const { t, lang } = useI18n()
+  const navigate = useNavigate()
+  const [query, setQuery] = useState("")
+  const [hot, setHot] = useState(0)
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return needle ? items.filter((item) => item.ar.includes(needle) || item.en.toLowerCase().includes(needle)) : items
+  }, [items, query])
+  useEffect(() => { if (open) { setQuery(""); setHot(0) } }, [open])
+  const go = (to: string) => { onClose(); navigate(to) }
+  return (
+    <AnimatePresence>
+      {open ? (
+        <div className="dlg-layer" onKeyDown={(event) => {
+          if (event.key === "Escape") onClose()
+          if (event.key === "ArrowDown") { event.preventDefault(); setHot((h) => Math.min(results.length - 1, h + 1)) }
+          if (event.key === "ArrowUp") { event.preventDefault(); setHot((h) => Math.max(0, h - 1)) }
+          if (event.key === "Enter" && results[hot]) go(results[hot].to)
+        }}>
+          <motion.div className="dlg-back" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+          <motion.div className="palette" role="dialog" aria-modal="true" aria-label={t.menuSearch} initial={{ opacity: 0, y: -12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
+            <div className="ctl">
+              <IconSearch size={20} aria-hidden="true" />
+              <input autoFocus value={query} placeholder={t.jumpHint} aria-label={t.menuSearch} onChange={(event) => { setQuery(event.target.value); setHot(0) }} />
+              <kbd style={{ fontSize: 11, color: "var(--text-3)", border: "1px solid var(--line)", borderRadius: 6, padding: "1px 6px" }}>Esc</kbd>
+            </div>
+            <div className="list" role="listbox">
+              {results.length === 0 ? <div className="pop-empty">{t.noPages}</div> : results.map((item, index) => {
+                const { Icon: Glyph, tone } = routeVisual(item.to)
+                return (
+                  <button key={item.to} type="button" role="option" aria-selected={hot === index} className={hot === index ? "opt hot" : "opt"} onMouseEnter={() => setHot(index)} onClick={() => go(item.to)}>
+                    <span className={`nav-ico tone-${tone}`} aria-hidden="true"><Glyph size={18} stroke={1.9} /></span>
+                    {lang === "ar" ? item.ar : item.en}
+                    <small>{groupLabel(item.group, lang)}</small>
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        </div>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
+/* ---------------- Sign-in screens ---------------- */
+
+export function AuthLayout({ title, lede, children, wide }: { title: string; lede?: string; children: ReactNode; wide?: boolean }) {
+  const { t, toggle, lang } = useI18n()
+  const heading = appConfig.kind === "admin"
+    ? (lang === "ar" ? "مركز قيادة الأكاديمية" : "The academy command center")
+    : appConfig.kind === "teacher"
+      ? (lang === "ar" ? "استوديو تصنع فيه دروسك" : "A studio for your lessons")
+      : (lang === "ar" ? "مساحة عمل معهدك" : "Your institute workspace")
+  return (
+    <div className="auth" data-app={appConfig.kind}>
+      <aside className="auth-art" aria-hidden="true">
+        <div className="auth-brand"><Mark size={44} />{t.brand}</div>
+        {appConfig.kind === "teacher" ? <Sprout className="scene" mood="wave" /> : <AuthScene />}
+        <div>
+          <h2>{heading}</h2>
+          <p>{t.tagline}</p>
+        </div>
+      </aside>
+      <main className="auth-panel">
+        <div className="auth-top">
+          <span className="auth-mobile-brand"><Mark size={34} />{t.brand}</span>
+          <Button variant="ghost" size="sm" icon={IconLanguage} onClick={toggle}>{t.language}</Button>
+        </div>
+        <div className={wide ? "auth-form wide" : "auth-form"}>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} style={{ display: "grid", gap: 6 }}>
+            <h1>{title}</h1>
+            <p className="lede">{lede ?? t.tagline}</p>
+          </motion.div>
+          {children}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+export function LoginCard({ title, onSubmit, extra }: { title: string; onSubmit: (phone: string, password: string) => Promise<void>; extra?: ReactNode }) {
+  const { t, lang } = useI18n()
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
   return (
-    <AuthLayout title={title}>
-      <form onSubmit={async (event) => {
+    <AuthLayout title={title} lede={lang === "ar" ? "ادخل برقم هاتفك وكلمة المرور." : "Sign in with your phone number and password."}>
+      <form className="form" onSubmit={async (event) => {
         event.preventDefault()
         setError("")
-        try { await onSubmit(phone, password) } catch (reason) { setError(reason instanceof Error ? reason.message : t.error) }
+        setBusy(true)
+        try { await onSubmit(phone, password) } catch (reason) { setError(reason instanceof Error ? reason.message : t.error) } finally { setBusy(false) }
       }}>
-        <label className="field">{t.phone}
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="username" inputMode="tel" />
-        </label>
-        <label className="field">{t.password}
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-        </label>
-        {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <button className="btn" type="submit">{t.login}</button>
+        <TextField label={t.phone} icon={IconPhone} value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="username" inputMode="tel" dir="ltr" placeholder="07XXXXXXXXX" />
+        <TextField label={t.password} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" error={error || undefined} />
+        <Button variant="primary" size="lg" type="submit" block busy={busy}>{t.login}</Button>
         {extra}
       </form>
     </AuthLayout>
+  )
+}
+
+export function Boot() {
+  const { t } = useI18n()
+  return (
+    <div className="boot" role="status" aria-label={t.loading} data-app={appConfig.kind}>
+      <span className="boot-mark"><Mark size={64} /></span>
+    </div>
   )
 }
