@@ -63,6 +63,7 @@ function Frame() {
   const [me, setMe] = useState<SessionUser | null>(null)
   const navigate = useNavigate()
   const { tr } = useI18n()
+  const parties = useParties()
   useEffect(() => {
     api<SessionUser>("/api/auth/me").then(setMe).catch(() => navigate("/login"))
   }, [navigate])
@@ -130,7 +131,7 @@ function Frame() {
             { key: "activatedCodesCount", label: L("أكواد مفعّلة", "Activated codes"), align: "end" },
             { key: "note", label: L("ملاحظة", "Note") },
           ]} fields={[
-            { name: "partyUserId", label: L("معرف الجهة", "Party id") },
+            { name: "partyUserId", label: L("الجهة", "Party"), choices: parties },
             { name: "amountIqd", label: "IQD", type: "number" },
             { name: "activatedCodesCount", label: L("عدد الأكواد", "Codes"), type: "number" },
             { name: "note", label: L("ملاحظة", "Note"), type: "textarea" },
@@ -226,6 +227,24 @@ function HourCodes() {
       <div className="card-foot"><span className="spacer" /><Button variant="primary" type="submit" busy={gen.busy} disabled={!packageId}>{tr("توليد", "Generate")}</Button></div>
     </Card>
   )
+}
+
+type Party = { value: string; label: string; hint?: string }
+
+/** Teachers and institutes as choices, so an account is picked and never typed as an id. */
+function useParties(): Party[] {
+  const { tr } = useI18n()
+  const [parties, setParties] = useState<Party[]>([])
+  useEffect(() => {
+    Promise.all([
+      api<{ items: Record<string, any>[] }>("/api/admin/teachers?page=1&pageSize=50").catch(() => ({ items: [] })),
+      api<{ items: Record<string, any>[] }>("/api/admin/institutes?page=1&pageSize=50").catch(() => ({ items: [] })),
+    ]).then(([teachers, institutes]) => setParties([
+      ...(teachers.items ?? []).map((row) => ({ value: row.id, label: `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim() || row.phone, hint: tr("معلم", "Teacher") })),
+      ...(institutes.items ?? []).map((row) => ({ value: row.id, label: row.instituteName || row.phone, hint: tr("معهد", "Institute") })),
+    ]))
+  }, [])
+  return parties
 }
 
 function PersonCell({ name }: { name: string }) {
@@ -370,7 +389,7 @@ function PoolCredit() {
   const [minutes, setMinutes] = useState("600")
   const [note, setNote] = useState("")
   const credit = useAction()
-  useEffect(() => { api<{ items: { id: string; instituteName: string }[] }>("/api/admin/institutes?pageSize=100").then((page) => setInstitutes(page.items ?? [])).catch(() => setInstitutes([])) }, [])
+  useEffect(() => { api<{ items: { id: string; instituteName: string }[] }>("/api/admin/institutes?pageSize=50").then((page) => setInstitutes(page.items ?? [])).catch(() => setInstitutes([])) }, [])
   return (
     <Card as="form" onSubmit={async () => {
       if (!instituteId) return
@@ -437,13 +456,14 @@ function Institutes() {
 function Subscriptions() {
   const { tr } = useI18n()
   const [userId, setUserId] = useState("")
+  const parties = useParties()
   const [planId, setPlanId] = useState("")
   const [plans, setPlans] = useState<{ id: string; title: string; priceYearly?: number; codesCount?: number }[] | null>(null)
   const [open, setOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const { busy, run } = useAction()
   useEffect(() => {
-    api<{ items: { id: string; title: string; priceYearly?: number; codesCount?: number }[] } | { id: string; title: string }[]>("/api/admin/plans?page=1&pageSize=100")
+    api<{ items: { id: string; title: string; priceYearly?: number; codesCount?: number }[] } | { id: string; title: string }[]>("/api/admin/plans?page=1&pageSize=50")
       .then((data) => setPlans(Array.isArray(data) ? data : data.items ?? []))
       .catch(() => setPlans(null))
   }, [])
@@ -463,10 +483,8 @@ function Subscriptions() {
         }}
         footer={<><Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>{tr("إلغاء", "Cancel")}</Button><Button variant="primary" type="submit" busy={busy}>{tr("تعيين نقدي", "Assign cash")}</Button></>}>
         <div className="form">
-          <TextField label={tr("معرف المستخدم", "User id")} value={userId} onChange={(event) => setUserId(event.target.value)} dir="ltr" className="mono" help={tr("معرف حساب المعلم أو المعهد", "The teacher or institute account id")} />
-          {plans && plans.length > 0
-            ? <Select label={tr("الباقة", "Plan")} value={planId} onChange={setPlanId} options={plans.map((plan) => ({ value: plan.id, label: plan.title, hint: plan.priceYearly != null ? `${plan.priceYearly.toLocaleString()} IQD · ${plan.codesCount ?? "—"}` : undefined }))} />
-            : <TextField label={tr("معرف الباقة", "Plan id")} value={planId} onChange={(event) => setPlanId(event.target.value)} dir="ltr" />}
+          <Select label={tr("الحساب", "Account")} value={userId} onChange={setUserId} help={tr("اختر المعلم أو المعهد", "Pick the teacher or institute")} options={[{ value: "", label: "—" }, ...parties]} />
+          <Select label={tr("الباقة", "Plan")} value={planId} onChange={setPlanId} options={(plans ?? []).map((plan) => ({ value: plan.id, label: plan.title, hint: plan.priceYearly != null ? `${plan.priceYearly.toLocaleString()} IQD · ${plan.codesCount ?? "—"}` : undefined }))} />
         </div>
       </Dialog>
     </Screen>

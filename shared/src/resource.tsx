@@ -13,6 +13,7 @@ export type Field = {
   label: string
   type?: "text" | "number" | "password" | "select" | "textarea" | "datetime"
   options?: string[]
+  choices?: { value: string; label: string; hint?: string }[]
   value?: string
   help?: string
 }
@@ -176,6 +177,7 @@ export function Resource<T extends Record<string, unknown>>({
                 const value = form[field.name] ?? ""
                 const set = (next: string) => setForm((prev) => ({ ...prev, [field.name]: next }))
                 const isBool = field.type === "select" && field.options?.length === 2 && field.options.every((option) => option === "true" || option === "false")
+                if (field.choices) return <Select key={field.name} label={field.label} value={value} onChange={set} help={field.help} options={[{ value: "", label: "—" }, ...field.choices]} />
                 if (isBool) return <Segmented key={field.name} label={field.label} value={value} onChange={set} options={[{ value: "true", label: t.yes }, { value: "false", label: t.no }]} />
                 if (field.type === "select") return <Select key={field.name} label={field.label} value={value} onChange={set} help={field.help} options={[{ value: "", label: "—" }, ...(field.options ?? []).map((option) => ({ value: option, label: enumText(option, lang) }))]} />
                 if (field.type === "textarea") return <TextArea key={field.name} className="span-all" label={field.label} value={value} onChange={(event) => set(event.target.value)} help={field.help} />

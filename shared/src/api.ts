@@ -25,6 +25,8 @@ const arabic: Record<string, string> = {
   invalid_expiry: "تاريخ الانتهاء يجب أن يكون في المستقبل.",
   forbidden: "لا تملك صلاحية لهذا الإجراء.",
   not_found: "العنصر غير موجود.",
+  package_code_missing: "كود الباقة غير صحيح. تأكد من الكود واطلب من الإدارة كوداً جديداً.",
+  code_missing: "هذا الكود غير موجود.",
 }
 
 function friendly(code: string, message: string) {

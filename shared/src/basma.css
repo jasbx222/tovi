@@ -940,3 +940,17 @@ body {
 .studio-info h2 { font-size: var(--fs-xl); }
 .studio-stats { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 720px) { .studio-head { grid-template-columns: 1fr; } .studio-cover { min-height: 160px; border-inline-end: 0; border-bottom: 1.5px solid var(--ink); } }
+
+/* ---------- Guided flow (classrooms) ---------- */
+.flow { display: grid; gap: 0; padding: var(--s5); }
+.flow-step { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: var(--s3); padding: var(--s3) 0; }
+.flow-step + .flow-step { border-top: 1.5px dashed var(--line); }
+.flow-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--yellow-500); font-weight: 700; box-shadow: 2px 2px 0 var(--ink); }
+.flow-step.done .flow-n { background: var(--green-500); color: #fff; }
+.flow-body { display: grid; gap: 6px; min-width: 0; }
+.flow-body small { color: var(--text-3); }
+.flow-balance { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 4px 12px; border-radius: 99px; background: var(--sky-50); border: 1.5px solid var(--ink); font-size: var(--fs-sm); }
+.flow-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s3); }
+.flow-inline > :first-child { flex: 1 1 240px; }
+.room-card .card-foot { background: transparent; }
+.code-list { display: grid; gap: 4px; max-height: 220px; overflow: auto; padding: 10px; border: 1.5px dashed var(--ink); border-radius: var(--r-md); background: var(--yellow-50); }
