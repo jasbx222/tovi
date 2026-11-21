@@ -185,6 +185,7 @@ function Frame() {
             { key: "monthlyMinutesLimit", label: L("الدقائق", "Minutes"), align: "end" },
             { key: "attendanceEnabled", label: L("علم الحضور", "Attendance flag") },
           ]} fields={hourFields(L)} />
+          <HourCodes />
         </Screen>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -193,6 +194,39 @@ function Frame() {
 }
 
 type L = (ar: string, en: string) => string
+
+function HourCodes() {
+  const { tr } = useI18n()
+  const [packages, setPackages] = useState<{ id: string; name: string }[]>([])
+  const [packageId, setPackageId] = useState("")
+  const [count, setCount] = useState("5")
+  const [codes, setCodes] = useState<{ code: string; status: string | number }[]>([])
+  const gen = useAction()
+  const load = (id: string) => api<{ code: string; status: string | number }[]>(`/api/admin/hour-packages/${id}/codes`).then(setCodes).catch(() => setCodes([]))
+  useEffect(() => { api<{ id: string; name: string }[]>("/api/admin/hour-packages").then(setPackages).catch(() => setPackages([])) }, [])
+  return (
+    <Card as="form" onSubmit={async () => {
+      if (!packageId) return
+      await gen.run(async () => {
+        await api(`/api/admin/hour-packages/${packageId}/codes`, { method: "POST", body: JSON.stringify({ count: Number(count) }) })
+        await load(packageId)
+      }, tr("تم توليد الأكواد", "Codes generated"))
+    }}>
+      <CardHead title={tr("أكواد باقة الساعات", "Hour package codes")} icon={IconTicket} tone="yellow" sub={tr("سلّم الكود للمعلم ليفعّله من لوحته", "Give the code to the teacher to redeem in their dashboard")} />
+      <div className="card-body form">
+        <Select label={tr("الباقة", "Package")} value={packageId} onChange={(value) => { setPackageId(value); if (value) load(value); else setCodes([]) }} options={[{ value: "", label: "—" }, ...packages.map((row) => ({ value: row.id, label: row.name }))]} />
+        <TextField label={tr("عدد الأكواد", "How many codes")} type="number" min={1} max={100} value={count} onChange={(event) => setCount(event.target.value)} />
+        {codes.length ? (
+          <div className="stack">
+            <div className="mono" dir="ltr" style={{ display: "grid", gap: 4 }}>{codes.map((row) => <span key={row.code}>{row.code} · {String(row.status)}</span>)}</div>
+            <Button variant="ghost" size="sm" onClick={() => navigator.clipboard?.writeText(codes.map((row) => row.code).join(String.fromCharCode(10)))}>{tr("نسخ الكل", "Copy all")}</Button>
+          </div>
+        ) : null}
+      </div>
+      <div className="card-foot"><span className="spacer" /><Button variant="primary" type="submit" busy={gen.busy} disabled={!packageId}>{tr("توليد", "Generate")}</Button></div>
+    </Card>
+  )
+}
 
 function PersonCell({ name }: { name: string }) {
   return <span className="cell-main"><Avatar name={name || "?"} />{name || "—"}</span>
@@ -329,6 +363,32 @@ function hourFields(L: L): Field[] {
   ]
 }
 
+function PoolCredit() {
+  const { tr } = useI18n()
+  const [institutes, setInstitutes] = useState<{ id: string; instituteName: string }[]>([])
+  const [instituteId, setInstituteId] = useState("")
+  const [minutes, setMinutes] = useState("600")
+  const [note, setNote] = useState("")
+  const credit = useAction()
+  useEffect(() => { api<{ items: { id: string; instituteName: string }[] }>("/api/admin/institutes?pageSize=100").then((page) => setInstitutes(page.items ?? [])).catch(() => setInstitutes([])) }, [])
+  return (
+    <Card as="form" onSubmit={async () => {
+      if (!instituteId) return
+      await credit.run(() => api(`/api/admin/institutes/${instituteId}/pool`, { method: "POST", body: JSON.stringify({ minutes: Number(minutes), note: note || "شحن من الإدارة" }) }), tr("شُحن رصيد المعهد", "Institute pool credited"))
+    }}>
+      <CardHead title={tr("شحن رصيد ساعات المعهد", "Credit an institute's hour pool")} icon={IconCash} tone="sky" sub={tr("الدقائق تُضاف لرصيد المعهد ويستخدمها معلموه للحصص", "Minutes go to the institute pool and its teachers use them for classes")} />
+      <div className="card-body form">
+        <Fields>
+          <Select label={tr("المعهد", "Institute")} value={instituteId} onChange={setInstituteId} options={[{ value: "", label: "—" }, ...institutes.map((row) => ({ value: row.id, label: row.instituteName }))]} />
+          <TextField type="number" min={1} label={tr("الدقائق", "Minutes")} value={minutes} onChange={(event) => setMinutes(event.target.value)} />
+          <TextField className="span-all" label={tr("ملاحظة", "Note")} optional value={note} onChange={(event) => setNote(event.target.value)} />
+        </Fields>
+      </div>
+      <div className="card-foot"><span className="spacer" /><Button variant="primary" type="submit" busy={credit.busy} disabled={!instituteId}>{tr("شحن", "Credit")}</Button></div>
+    </Card>
+  )
+}
+
 function Institutes() {
   const { tr } = useI18n()
   const [open, setOpen] = useState(false)
@@ -341,6 +401,7 @@ function Institutes() {
         { key: "phone", label: tr("الهاتف", "Phone"), render: (row) => <Phone value={row.phone} /> },
         { key: "logoFileId", label: tr("الشعار", "Logo"), render: (row) => row.logoFileId ? <span className="badge ok">{tr("مرفوع", "Uploaded")}</span> : <span className="muted">—</span> },
       ]} />
+      <PoolCredit />
       <Dialog open={open} onClose={() => setOpen(false)} title={tr("معهد جديد", "New institute")} sub={tr("يُنشأ الحساب مع الشعار في طلب واحد.", "The account and logo are created in one request.")} icon={IconBuildingCommunity} tone="purple" size="lg" busy={busy}
         onSubmit={async (event) => {
           event.preventDefault()
